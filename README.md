@@ -14,7 +14,7 @@ Chat with your local coding agents from inside **World of Warcraft: Forever**: [
 - Herb and ore spawns on the world map, filtered by your gathering skill (`/wow-ai map ore`, `/wow-ai map herb`)
 - An **Allow & retry** button when Claude or Grok needs a command outside your allowlist
 - A status light for the bridge, automatic retries, and recovery of your chats (and map layers) if the beta client wipes addon data
-- Runs on Windows, and on Linux with the game under Wine
+- Runs on Windows, on macOS with the native client, and on Linux with the game under Wine
 
 Nothing here injects code, reads game memory, or generates input. The addon uses documented addon APIs only; the companion reads your screen and writes ordinary files.
 
@@ -36,7 +36,7 @@ The bridge drives whichever of these you have installed; each chat can use a dif
 
 ## Requirements
 
-- Windows (NTFS), or Linux with the game under Wine on an **X11** session and python3 (see [docs/INSTALL-LINUX.md](docs/INSTALL-LINUX.md))
+- Windows (NTFS), or macOS 13+ / Linux with python3. Linux also needs the game under Wine on an **X11** session (see [docs/INSTALL-LINUX.md](docs/INSTALL-LINUX.md))
 - World of Warcraft: Forever (tested on 1.60.1.69913 and 1.60.1.69977, TOC 16001), **windowed or borderless** (exclusive fullscreen blocks screen capture)
 - [Node.js](https://nodejs.org) 22.2 or newer
 - At least one agent CLI, installed and logged in:
@@ -51,7 +51,7 @@ The bridge drives whichever of these you have installed; each chat can use a dif
 Step-by-step for a fresh machine, with troubleshooting: [docs/INSTALL-WINDOWS.md](docs/INSTALL-WINDOWS.md). The short version:
 
 ```powershell
-git clone https://github.com/chelinho139/wow-ai
+git clone https://github.com/maxgiraldo/wow-ai.git
 cd wow-ai
 node setup.js --project "C:\path\to\the\project\you\want\to\work\on"
 ```
@@ -72,13 +72,30 @@ It restarts itself if it ever crashes. Ctrl+C (or closing the window) stops it. 
 Details and capture troubleshooting: [docs/INSTALL-LINUX.md](docs/INSTALL-LINUX.md). The short version:
 
 ```bash
-git clone https://github.com/chelinho139/wow-ai
+git clone https://github.com/maxgiraldo/wow-ai.git
 cd wow-ai
 node setup.js --project ~/path/to/the/project   # finds the client in $WINEPREFIX, ~/.wine...; or pass --wow "<client folder>"
 npm start
 ```
 
 The bridge captures the game window through X11 (`bridge/capture_x11.py`, no packages needed) and writes the slot files straight into the Wine prefix. Check the capture once: send any message from the game and, while the strip of colored squares is in the top-left corner, run `npm run probe` in a second terminal. It saves what the capture sees to `bridge/probe.png` and says whether it decoded the strip.
+
+### macOS
+
+```bash
+git clone https://github.com/maxgiraldo/wow-ai.git
+cd wow-ai
+node setup.js --project ~/path/to/the/project   # finds the client in /Applications/World of Warcraft; or pass --wow "<client folder>"
+npm start
+```
+
+The bridge captures the native macOS client with `bridge/capture_mac.py` (python3 + built-in `screencapture` and `osascript`). The first run will ask for **Screen Recording** and **System Events** permissions in System Settings > Privacy & Security. Check the capture once: send any message from the game and, while the strip of colored squares is in the top-left corner, run:
+
+```bash
+python3 bridge/capture_mac.py --probe bridge/probe.png
+```
+
+It saves what the capture sees to `bridge/probe.png` and says whether it decoded the strip. Keep the game **windowed or borderless**.
 
 ### Upgrading from wow-claude
 
@@ -94,8 +111,8 @@ npm link          # in the wow-ai folder; makes `wow-ai` available everywhere
 
 Then, from any project:
 
-```powershell
-cd C:\path\to\realms
+```bash
+cd ~/path/to/realms   # or: cd C:\path\to\realms on Windows
 wow-ai
 ```
 
@@ -192,6 +209,8 @@ The keys you are most likely to touch. Every key, flag and environment variable 
 - **Connect says "No answer from the bridge" / light stays red** — is the bridge running? Is the game window on screen and not minimized? Exclusive fullscreen blocks capture. `bridge.log` shows `strip #N` when a message is decoded and `strip seen but rejected: ...` when one is misread.
 - **Linux: `bridge.log` keeps saying `waiting for WowB window`** — the game isn't running or its window has another name: set `capture.processName` to the exe name, or `capture.windowName` to part of the window title. On Wayland the capture can't see other windows; use an X11 session.
 - **Linux: `npm run probe` shows a black or stale picture** — the compositor is letting the game present on its own. Try `"keepComposited": true` under `capture`, then windowed mode, then `nvidia-settings -a AllowFlipping=0` on NVIDIA; `/wow-ai mode reload` works without any capture.
+- **macOS: `bridge.log` keeps saying `waiting for World of Warcraft window`** — the game isn't running or its process has another name. Check `Activity Monitor` for the executable name and set `capture.processName` in `bridge/config.json`, or set `capture.windowName` to part of the window title.
+- **macOS: the probe fails or `screencapture` is denied** — grant **Screen Recording** and **System Events** permissions to your terminal app (e.g. `Terminal.app`) in System Settings > Privacy & Security, then restart the bridge.
 - **No herb/ore pins after `/wow-ai map ore`** — `/wow-ai map` says whether the `WoWAI_Nodes` data addon is installed; pins show on zone maps only, and with `filter skill` only what your skill can gather.
 - **The reply says "X is not installed on the bridge PC"** — the bridge's banner shows where it looked for each agent. Install the CLI, or put the full path of its executable in `agents.<id>.path` in `bridge/config.json` and restart the bridge.
 - **A reply says the agent is not logged in, or asks for a login** — run the CLI once by hand on the bridge PC (`claude`, `codex`, or `grok login`) and log in; the bridge reuses that.
